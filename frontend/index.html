@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Tracking Application</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">🚌</div>
+                <h1>Bus Tracker</h1>
+                <p>Real-time Tracking</p>
+            </div>
+
+            <div class="sidebar-content">
+                <!-- Route Selection -->
+                <section class="section">
+                    <h2 class="section-title">Select Route</h2>
+                    <div class="route-grid" id="routeGrid">
+                        <!-- Routes loaded via JS -->
+                    </div>
+                </section>
+
+                <!-- Bus Information -->
+                <section class="section" id="busInfoSection" style="display: none;">
+                    <h2 class="section-title">Bus Information</h2>
+                    <div class="info-panel">
+                        <div class="info-row">
+                            <span class="info-label">Status</span>
+                            <span class="info-value status-badge" id="busStatus">Active</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Bus ID</span>
+                            <span class="info-value" id="busId">--</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Speed</span>
+                            <span class="info-value" id="busSpeed">-- km/h</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Latitude</span>
+                            <span class="info-value" id="busLat">--</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Longitude</span>
+                            <span class="info-value" id="busLng">--</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">ETA to Next Stop</span>
+                            <span class="info-value" id="busEta">-- min</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Nearest Stop Panel -->
+                <section class="section" id="nearestSection" style="display: none;">
+                    <h2 class="section-title">Nearest Bus Stop</h2>
+                    <div class="nearest-panel">
+                        <div class="nearest-header">
+                            <span class="nearest-icon">📍</span>
+                            <span class="nearest-name" id="nearestStopName">--</span>
+                        </div>
+                        <div class="nearest-distance">
+                            <span>Distance:</span>
+                            <span id="nearestDistance">--</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Control Buttons -->
+                <section class="section controls">
+                    <button class="control-btn primary" id="trackBtn" onclick="toggleTracking()">
+                        ⏸ Pause
+                    </button>
+                    <button class="control-btn secondary" id="locateBtn" onclick="locateUser()">
+                        📍 Locate Me
+                    </button>
+                    <button class="control-btn outline" id="changeRouteBtn" onclick="showRouteSelector()">
+                        🔄 Change Route
+                    </button>
+                </section>
+            </div>
+        </aside>
+
+        <!-- Map Container -->
+        <main class="map-container">
+            <div id="map"></div>
+            
+            <!-- Loading Overlay -->
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="spinner"></div>
+                <p>Loading...</p>
+            </div>
+
+            <!-- Legend -->
+            <div class="legend" id="legend" style="display: none;">
+                <div class="legend-item">
+                    <div class="legend-color blue"></div>
+                    <span>Bus Route</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color green"></div>
+                    <span>User → Stop</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-marker bus"></div>
+                    <span>Bus</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-marker stop"></div>
+                    <span>Bus Stop</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Alert Toast -->
+    <div class="toast" id="toast">
+        <div class="toast-icon">🔔</div>
+        <div class="toast-content">
+            <div class="toast-title" id="toastTitle">Alert</div>
+            <div class="toast-message" id="toastMessage"></div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- IMPORTANT: INSERT YOUR GOOGLE MAPS API KEY -->
+    <!-- ============================================ -->
+    <script>
+        // ============================================
+        // REPLACE THIS WITH YOUR GOOGLE MAPS API KEY
+        // ============================================
+        const GOOGLE_MAPS_API_KEY = 'YOUR_API_KEY_HERE';
+        const API_BASE_URL = 'http://localhost:5000/api';
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>

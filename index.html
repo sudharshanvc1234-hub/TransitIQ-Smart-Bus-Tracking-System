@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Tracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Poppins', sans-serif; background: #1a1a2e; color: white; overflow: hidden; }
+        .app { display: flex; height: 100vh; }
+        
+        .sidebar { width: 340px; background: linear-gradient(180deg, #1a1a2e, #16213e); padding: 20px; display: flex; flex-direction: column; box-shadow: 4px 0 20px rgba(0,0,0,0.3); z-index: 10; overflow-y: auto; }
+        .sidebar h1 { font-size: 1.4rem; margin-bottom: 5px; }
+        .sidebar-header { padding: 20px; background: linear-gradient(135deg, #0f3460, #667eea); border-radius: 12px; margin-bottom: 20px; text-align: center; }
+        .sidebar-header span { font-size: 2rem; }
+        
+        .section-title { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 1px; margin: 15px 0 10px; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        
+        .route-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+        .route-card { background: #252550; padding: 12px 6px; border-radius: 10px; text-align: center; cursor: pointer; transition: 0.3s; border: 2px solid transparent; }
+        .route-card:hover { transform: translateY(-3px); border-color: #667eea; }
+        .route-card.active { background: linear-gradient(135deg, #667eea, #764ba2); border-color: #667eea; }
+        .route-num { font-size: 1.2rem; font-weight: 700; }
+        .route-name { font-size: 0.6rem; color: #888; }
+        .route-card.active .route-name { color: #ddd; }
+        
+        .info-panel { background: #252550; border-radius: 12px; padding: 15px; }
+        .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #333; }
+        .info-row:last-child { border: none; }
+        .info-label { font-size: 0.8rem; color: #888; }
+        .info-value { font-size: 0.85rem; font-weight: 600; }
+        .status-badge { background: linear-gradient(135deg, #34a853, #00ff88); color: #1a1a2e; padding: 3px 10px; border-radius: 15px; font-size: 0.7rem; font-weight: 600; }
+        .status-badge.paused { background: linear-gradient(135deg, #ff9800, #ff5722); color: white; }
+        
+        .controls { display: flex; gap: 10px; margin-top: 20px; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 10px; cursor: pointer; font-family: Poppins; font-weight: 600; transition: 0.3s; }
+        .btn-primary { background: linear-gradient(135deg, #4285f4, #667eea); color: white; }
+        .btn-secondary { background: linear-gradient(135deg, #ff6b6b, #ee5a24); color: white; }
+        .btn:hover { transform: translateY(-2px); }
+        
+        .nearest-panel { background: #252550; border-radius: 12px; padding: 15px; margin-top: 15px; display: none; }
+        .nearest-panel.show { display: block; }
+        .nearest-header { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+        
+        .map-container { flex: 1; position: relative; }
+        #map { width: 100%; height: 100%; }
+        
+        .loading { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #1a1a2e; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; transition: 0.4s; }
+        .loading.hidden { opacity: 0; pointer-events: none; }
+        .spinner { width: 50px; height: 50px; border: 4px solid #333; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .legend { position: absolute; bottom: 20px; right: 20px; background: rgba(26,26,46,0.95); padding: 15px; border-radius: 10px; display: none; }
+        .legend.show { display: block; }
+        .legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.75rem; margin: 6px 0; }
+        .legend-color { width: 20px; height: 5px; border-radius: 3px; }
+        .legend-marker { width: 12px; height: 12px; border-radius: 50%; }
+        
+        .toast { position: fixed; top: 20px; right: 20px; background: #252550; padding: 15px 20px; border-radius: 10px; border-left: 4px solid #34a853; transform: translateX(120%); transition: 0.4s; z-index: 200; }
+        .toast.show { transform: translateX(0); }
+        
+        @media (max-width: 768px) {
+            .app { flex-direction: column; }
+            .sidebar { width: 100%; height: 45vh; }
+            .map-container { height: 55vh; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <aside class="sidebar">
+            <div class="sidebar-header"><span>🚌</span><h1>Bus Tracker</h1><p>Real-time Tracking</p></div>
+            
+            <div class="section-title">Select Route</div>
+            <div class="route-grid" id="routeGrid"></div>
+            
+            <div class="section-title">Bus Information</div>
+            <div class="info-panel" id="busInfoPanel" style="display:none;">
+                <div class="info-row"><span class="info-label">Status</span><span class="status-badge" id="busStatus">Active</span></div>
+                <div class="info-row"><span class="info-label">Speed</span><span class="info-value" id="busSpeed">25 km/h</span></div>
+                <div class="info-row"><span class="info-label">Latitude</span><span class="info-value" id="busLat">--</span></div>
+                <div class="info-row"><span class="info-label">Longitude</span><span class="info-value" id="busLng">--</span></div>
+                <div class="info-row"><span class="info-label">ETA</span><span class="info-value" id="busEta">-- min</span></div>
+            </div>
+            
+            <div class="nearest-panel" id="nearestPanel">
+                <div class="nearest-header"><span>📍</span><span id="nearestName">--</span></div>
+                <p style="margin-top:10px;font-size:0.85rem;">Distance: <span id="nearestDist">--</span></p>
+            </div>
+            
+            <div class="controls">
+                <button class="btn btn-primary" id="trackBtn" onclick="toggleTracking()">⏸ Pause</button>
+                <button class="btn btn-secondary" onclick="locateUser()">📍 Locate Me</button>
+            </div>
+        </aside>
+        
+        <main class="map-container">
+            <div id="map"></div>
+            <div class="loading" id="loading"><div class="spinner"></div><p style="margin-top:15px;color:#888;">Loading...</p></div>
+            <div class="legend" id="legend">
+                <div class="legend-item"><div class="legend-color" style="background:#4285f4"></div><span>Route</span></div>
+                <div class="legend-item"><div class="legend-color" style="background:#34a853"></div><span>User → Stop</span></div>
+                <div class="legend-item"><div class="legend-marker" style="background:linear-gradient(#ff9800,#ff5722)"></div><span>Bus</span></div>
+                <div class="legend-item"><div class="legend-marker" style="background:#ea4335"></div><span>Stop</span></div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="toast" id="toast"><strong id="toastTitle"></strong><p id="toastMsg" style="font-size:0.8rem;color:#888;"></p></div>
+
+    <script src="config.js"></script>
+    <script>
+        const API_KEY = typeof CONFIG !== 'undefined' ? CONFIG.GOOGLE_MAPS_API_KEY : '';
+        
+        if (API_KEY === 'YOUR_API_KEY_HERE' || !API_KEY) {
+            document.getElementById('loading').innerHTML = '<p style="color:#ff6b6b;">Add API key in config.js</p>';
+        }
+        
+       const routes = {
+    route1: {
+        name: 'Majestic → Indiranagar',
+        num: 1,
+        coords: [
+            {lat:12.9767,lng:77.5713}, // Majestic
+            {lat:12.9780,lng:77.5800},
+            {lat:12.9805,lng:77.5900},
+            {lat:12.9840,lng:77.6000},
+            {lat:12.9784,lng:77.6408}  // Indiranagar
+        ],
+        stops: [
+            {n:'Majestic',lat:12.9767,lng:77.5713},
+            {n:'Cubbon Park',lat:12.9763,lng:77.5929},
+            {n:'MG Road',lat:12.9756,lng:77.6050},
+            {n:'Indiranagar',lat:12.9784,lng:77.6408}
+        ],
+        speed: 25
+    },
+
+    route2: {
+        name: 'Silk Board → Whitefield',
+        num: 2,
+        coords: [
+            {lat:12.9177,lng:77.6220},
+            {lat:12.9300,lng:77.6400},
+            {lat:12.9500,lng:77.6700},
+            {lat:12.9700,lng:77.7000},
+            {lat:12.9698,lng:77.7500}
+        ],
+        stops: [
+            {n:'Silk Board',lat:12.9177,lng:77.6220},
+            {n:'Bellandur',lat:12.9250,lng:77.6762},
+            {n:'Marathahalli',lat:12.9591,lng:77.6974},
+            {n:'Whitefield',lat:12.9698,lng:77.7500}
+        ],
+        speed: 22
+    },
+
+    route3: {
+        name: 'Yelahanka → Hebbal',
+        num: 3,
+        coords: [
+            {lat:13.1007,lng:77.5963},
+            {lat:13.0900,lng:77.6000},
+            {lat:13.0700,lng:77.6050},
+            {lat:13.0350,lng:77.5970}
+        ],
+        stops: [
+            {n:'Yelahanka',lat:13.1007,lng:77.5963},
+            {n:'Jakkur',lat:13.0785,lng:77.5970},
+            {n:'Hebbal',lat:13.0350,lng:77.5970}
+        ],
+        speed: 20
+    },
+
+    route4: {
+        name: 'BTM → Electronic City',
+        num: 4,
+        coords: [
+            {lat:12.9166,lng:77.6101},
+            {lat:12.9100,lng:77.6200},
+            {lat:12.9000,lng:77.6300},
+            {lat:12.8400,lng:77.6800}
+        ],
+        stops: [
+            {n:'BTM Layout',lat:12.9166,lng:77.6101},
+            {n:'Bommanahalli',lat:12.9081,lng:77.6225},
+            {n:'Electronic City',lat:12.8399,lng:77.6770}
+        ],
+        speed: 18
+    },
+
+    route5: {
+        name: 'Rajajinagar → Jayanagar',
+        num: 5,
+        coords: [
+            {lat:12.9915,lng:77.5553},
+            {lat:12.9800,lng:77.5700},
+            {lat:12.9600,lng:77.5800},
+            {lat:12.9250,lng:77.5938}
+        ],
+        stops: [
+            {n:'Rajajinagar',lat:12.9915,lng:77.5553},
+            {n:'Vijayanagar',lat:12.9720,lng:77.5450},
+            {n:'Lalbagh',lat:12.9507,lng:77.5848},
+            {n:'Jayanagar',lat:12.9250,lng:77.5938}
+        ],
+        speed: 20
+    }
+};
+        
+        let map, routePoly, busMarker, userMarker, stopMarkers = [], userPath;
+        let selectedRoute = null, userLoc = null, busIdx = 0, isTracking = true, mover = null;
+        
+        function init() {
+            map = new google.maps.Map(document.getElementById('map'), { zoom: 13, center: {lat:12.9716,lng:77.5946} });
+            renderRoutes();
+            document.getElementById('loading').classList.add('hidden');
+        }
+        
+        function renderRoutes() {
+            const grid = document.getElementById('routeGrid');
+            Object.keys(routes).forEach(k => {
+                const r = routes[k], d = document.createElement('div');
+                d.className = 'route-card'; d.dataset.r = k;
+                d.innerHTML = `<div class="route-num">${r.num}</div><div class="route-name">${r.name}</div>`;
+                d.onclick = () => selectRoute(k);
+                grid.appendChild(d);
+            });
+        }
+        
+        function selectRoute(rid) {
+            document.querySelectorAll('.route-card').forEach(c => c.classList.remove('active'));
+            document.querySelector(`[data-r="${rid}"]`).classList.add('active');
+            clearMap();
+            selectedRoute = routes[rid];
+            busIdx = 0;
+            document.getElementById('busInfoPanel').style.display = 'block';
+            document.getElementById('legend').classList.add('show');
+            drawRoute();
+            drawStops();
+            startBus();
+        }
+        
+        function clearMap() {
+            if (routePoly) routePoly.setMap(null);
+            if (busMarker) busMarker.setMap(null);
+            if (userMarker) userMarker.setMap(null);
+            if (userPath) userPath.setMap(null);
+            stopMarkers.forEach(m => m.setMap(null));
+            stopMarkers = [];
+            if (mover) clearInterval(mover);
+        }
+        
+        function drawRoute() {
+            routePoly = new google.maps.Polyline({ path: selectedRoute.coords, strokeColor:'#4285f4', strokeWeight:5, strokeOpacity:0.8 });
+            routePoly.setMap(map);
+            const b = new google.maps.LatLngBounds();
+            selectedRoute.coords.forEach(c => b.extend(c));
+            map.fitBounds(b);
+        }
+        
+        function drawStops() {
+            selectedRoute.stops.forEach(s => {
+                const m = new google.maps.Marker({ position:{lat:s.lat,lng:s.lng}, map, title:s.n,
+                    icon:{path:'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z',fillColor:'#ea4335',scale:1.2} });
+                stopMarkers.push(m);
+            });
+        }
+        
+        function startBus() {
+            busMarker = new google.maps.Marker({ position:selectedRoute.coords[0], map, title:'Bus',
+                icon:{path:'M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-13c-.66 0-1.21.42-1.41 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z',fillColor:'#ff9800',scale:1.2} });
+            updateBusInfo();
+            mover = setInterval(() => { if (isTracking) moveBus(); }, 2000);
+        }
+        
+        function moveBus() {
+            busIdx = (busIdx + 1) % selectedRoute.coords.length;
+            busMarker.setPosition(selectedRoute.coords[busIdx]);
+            updateBusInfo();
+            calcETA();
+        }
+        
+        function updateBusInfo() {
+            const p = selectedRoute.coords[busIdx];
+            document.getElementById('busLat').textContent = p.lat.toFixed(6);
+            document.getElementById('busLng').textContent = p.lng.toFixed(6);
+            document.getElementById('busSpeed').textContent = selectedRoute.speed + ' km/h';
+        }
+        
+        function calcETA() {
+            let d = Infinity, ns = null;
+            selectedRoute.stops.forEach(s => {
+                const dist = haversine(p.lat,p.lng,s.lat,s.lng);
+                if (dist < d) { d = dist; ns = s; }
+            });
+            if (ns) {
+                const eta = Math.round((d / selectedRoute.speed) * 60);
+                document.getElementById('busEta').textContent = eta + ' min';
+                if (eta < 2) showToast('Arriving!', `Bus arriving at ${ns.n}`);
+            }
+        }
+        
+        function locateUser() {
+            navigator.geolocation ? navigator.geolocation.getCurrentPosition(pos => {
+                userLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                if (userMarker) userMarker.setMap(null);
+                userMarker = new google.maps.Marker({ position:userLoc, map, title:'You',
+                    icon:{path:'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z',fillColor:'#00ff88',scale:1} });
+                map.panTo(userLoc);
+                if (selectedRoute) findNearestStop();
+            }, e => showToast('Error','Location unavailable')) : showToast('Error','Geolocation not supported');
+        }
+        
+        function findNearestStop() {
+            let d = Infinity, ns = null;
+            selectedRoute.stops.forEach(s => {
+                const dist = haversine(userLoc.lat,userLoc.lng,s.lat,s.lng);
+                if (dist < d) { d = dist; ns = s; }
+            });
+            document.getElementById('nearestName').textContent = ns.n;
+            document.getElementById('nearestDist').textContent = d < 1 ? Math.round(d*1000)+'m' : d.toFixed(2)+'km';
+            // Simple polyline instead of Directions API
+            if (userPath) userPath.setMap(null);
+            userPath = new google.maps.Polyline({ path:[userLoc,{lat:ns.lat,lng:ns.lng}], strokeColor:'#34a853',strokeWeight:4,strokeOpacity:0.8 });
+            userPath.setMap(map);
+        }
+        
+        function toggleTracking() {
+            isTracking = !isTracking;
+            document.getElementById('trackBtn').textContent = isTracking ? '⏸ Pause' : '▶ Play';
+            document.getElementById('busStatus').textContent = isTracking ? 'Active' : 'Paused';
+            document.getElementById('busStatus').classList.toggle('paused', !isTracking);
+        }
+        
+        function haversine(a,b,c,d) {
+            const R = 6371, da = (c-a)*Math.PI/180, db = (d-b)*Math.PI/180;
+            return R * 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(da/2),2) + Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.pow(Math.sin(db/2),2)));
+        }
+        
+        let toastT;
+        function showToast(t,m) {
+            document.getElementById('toastTitle').textContent = t;
+            document.getElementById('toastMsg').textContent = m;
+            document.getElementById('toast').classList.add('show');
+            clearTimeout(toastT);
+            toastT = setTimeout(() => document.getElementById('toast').classList.remove('show'), 3500);
+        }
+        
+        // Load Google Maps
+        const s = document.createElement('script');
+        s.src = `https://maps.googleapis.com/maps/api/js?key=${API_KEY}&callback=init`;
+        document.head.appendChild(s);
+    </script>
+</body>
+</html>

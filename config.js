@@ -1,0 +1,4 @@
+
+const CONFIG = {
+    GOOGLE_MAPS_API_KEY: 'AIzaSyCOl_G2j0myWlt_s27um09tGJcKi4NRFEQ'
+};
